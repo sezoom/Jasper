@@ -1,0 +1,35 @@
+# Develop the main functions
+# GENERAL
+# 3- Live Sniffing
+# 4- Read Capture File
+# 5- Save Capture File
+# ANALYSIS
+# 1-
+# 2- Save GeoWord Trace Route
+# 6- Save Packet structure
+# 7- Save Conversations
+# 8- Generate Intensive Report
+
+# SCANNING
+# 1- Scan the Network
+# 2- Scan Open Port for Host or Host List
+# 3- Scan Server using ACK
+# 4- Trace Route to Ip Location
+
+# ATTACK
+# 1- Vulnerability Scanning   // use openvas lib
+# 2- ARP Poisning (MiTMA)   //using scapy
+# 3- Fake SSL (MiTMA)
+# 4- Fuzzing
+# 5- Reply Attack
+# 6- Construct & Send Packet
+# 6- Deny of Service DoS
+# 7- Save Vulnerability List
+
+#CONFIGURATION:
+# 1- Advanced Mode function
+# 2- Configuration
+    #1- ## list interfaces, MACS
+        ## route
+        ## Local ip address
+    #2- New Protocol
