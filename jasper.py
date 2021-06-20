@@ -71,6 +71,63 @@ def liveSniffing():
 
     return pkt
 
+
+def addInterface():
+    global ifacelist
+    print(colored("Control One Or Multiple Interfaces At The Same Time","yellow"))
+    print(colored("Current Used Interface(s):", "green"), ifacelist)
+    while (True):
+        print(colored("Add Interface ID From The List, 99 To Return Back To Main Menu:","yellow"))
+
+        print("ID\t","NAME\t","IP\t\t", "MAC")
+        for x in ifaces:
+            print(ifaces.dev_from_name(x).index," \t",ifaces.dev_from_name(x).name," \t",ifaces.dev_from_name(x).ip," \t",ifaces.dev_from_name(x).mac)
+        inp=input()
+        if(inp=="99"):
+            mainmenu()
+        try:
+            if(ifaces.dev_from_index(inp).name not in ifacelist):
+                ifacelist+=[ifaces.dev_from_index(inp).name]
+            print(colored("Current Used Interface(s):", "green"), ifacelist)
+        except:
+            print(colored("Interface Not Found", "red"))
+
+    return ifacelist
+
+def removeInterface():
+    global ifacelist
+    print(colored("Control One Or Multiple Interfaces At The Same Time","yellow"))
+    print(colored("Current Used Interface(s):", "green"), ifacelist)
+    while (True):
+        print(colored("Remove Interface ID From The List, 99 To Return Back To Main Menu:","yellow"))
+
+        print("ID\t","NAME\t","IP\t\t", "MAC")
+        for x in ifaces:
+            print(ifaces.dev_from_name(x).index," \t",ifaces.dev_from_name(x).name," \t",ifaces.dev_from_name(x).ip," \t",ifaces.dev_from_name(x).mac)
+        inp=input()
+        if(inp=="99"):
+            mainmenu()
+        try:
+            if(ifaces.dev_from_index(inp).name in ifacelist):
+                ifacelist.remove(ifaces.dev_from_index(inp).name)
+            print(colored("Current Used Interface(s):", "green"), ifacelist)
+        except:
+            print(colored("Interface Not Found", "red"))
+    return ifacelist
+
+def setConfiguration():
+    print(colored("Configuration\na- Add Interface\nb- Remove interface","yellow"))
+    inp = input("Enter code name:")
+
+    if (inp == "a"):
+        ifacelist=addInterface()
+    else:
+        if (inp == "b"):
+            ifacelist=removeInterface()
+        else:
+            print("Wrong OPT")
+
+
 def mainmenu():
     global pkt
     optionsGeneral =['-----GENERAL--------','ga- Live Sniffing','gb- Read Capture File','gc- Save Capture File','gd- About Jasper','xx- Exit Jasper\t']
@@ -88,10 +145,10 @@ def mainmenu():
         print(colored('\t\t\t\tEthical Hacking Toolkit', 'white'))
         print(colored('\t\t\t\tVersion:', 'white'), colored('0.1', 'green'))
         for opt1,opt2 in zip(optionsGeneral,optionsAnalysis):
-            print(colored(opt1,'green'),"\t",colored(opt2,'green'))
+            print(colored(opt1,'green'),"\t",colored(opt2,'yellow'))
 
         for opt1,opt2 in zip(optionsScan,optionsAttacks):
-            print(colored(opt1,'green'),"\t",colored(opt2,'green'))
+            print(colored(opt1,'yellow'),"\t",colored(opt2,'yellow'))
 
         for opt1 in optionsConfiguration:
             print(colored(opt1,'green'))
@@ -105,22 +162,25 @@ def mainmenu():
                 dialog = dialogsGUI()
                 fileName, ext = dialog.openFileNameDialog()
                 if (str(ext) == ""):
-                    break
+                    mainmenu()
                 pkt=readPCAP(fileName)
             else:
                 if (inp=="gc"):
                     dialog = dialogsGUI()
                     fileName, ext = dialog.saveFileDialog()
                     if (str(ext) == ""):
-                        break
+                        mainmenu()
                     savePCAP(fileName,pkt)
                 if (inp == "ca"):
                     advanceMode()
                 else:
-                    if (inp=="xx"):
-                        exit()
+                    if (inp=="cb"):
+                        setConfiguration()
                     else:
-                        print("Wrong OPT")
+                        if(inp=="xx"):
+                            exit()
+                        else:
+                            print("Wrong OPT")
 
 
 app = QApplication(sys.argv)
