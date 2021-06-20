@@ -1,4 +1,6 @@
 #! /usr/bin/env python3
+import time
+
 from PyQt5.QtWidgets import QApplication
 from pyfiglet import Figlet
 from termcolor import colored
@@ -127,6 +129,18 @@ def setConfiguration():
         else:
             print("Wrong OPT")
 
+def typeWriter(message):
+    for char in message:
+        print(char,end='',flush=True)
+        time.sleep(0.05)
+
+def aboutJasper():
+    msg="Jasper Developed by Hamad ALSHEHHI 2021\n\nThe application built on top of SCAPY library.\nIt can be used to analyze network's devices security.\nThe application comes with no warranty"
+    os.system("clear")
+    typeWriter(msg)
+    time.sleep(5)
+    os.system("clear")
+
 
 def mainmenu():
     global pkt
@@ -140,8 +154,9 @@ def mainmenu():
                     'tg- Deny of Service DoS','th- Save Vulnerability List']
     optionsConfiguration=['-----CONFIGURATION------','ca- Advanced Mode','cb- Configuration']
 
+    os.system("clear")
     while(True):
-        print(colored(f.renderText('Jasper'), "red"))
+        print(colored(f.renderText('Jasper >>>'), "red"))
         print(colored('\t\t\t\tEthical Hacking Toolkit', 'white'))
         print(colored('\t\t\t\tVersion:', 'white'), colored('0.1', 'green'))
         for opt1,opt2 in zip(optionsGeneral,optionsAnalysis):
@@ -171,16 +186,21 @@ def mainmenu():
                     if (str(ext) == ""):
                         mainmenu()
                     savePCAP(fileName,pkt)
-                if (inp == "ca"):
-                    advanceMode()
                 else:
-                    if (inp=="cb"):
-                        setConfiguration()
+                    if(inp=="gd"):
+                        aboutJasper()
                     else:
-                        if(inp=="xx"):
-                            exit()
+                        if (inp == "ca"):
+                            advanceMode()
                         else:
-                            print("Wrong OPT")
+                            if (inp=="cb"):
+                                setConfiguration()
+                            else:
+                                if(inp=="xx"):
+                                    exit()
+                                    sys.exit(app.exec_())
+                                else:
+                                    print("Wrong OPT")
 
 
 app = QApplication(sys.argv)
