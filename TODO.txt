@@ -4,7 +4,7 @@
 # 4- Read Capture File
 # 5- Save Capture File
 # ANALYSIS
-# 1-
+# 1- Resolve servers Names
 # 2- Save GeoWord Trace Route
 # 6- Save Packet structure
 # 7- Save Conversations
@@ -33,3 +33,6 @@
         ## route
         ## Local ip address
     #2- New Protocol
+
+
+## build easy to use and fast GUI
