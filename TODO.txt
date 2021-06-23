@@ -8,6 +8,7 @@
 # 2- Save GeoWord Trace Route
 # 6- Save Packet structure
 # 7- Save Conversations
+#   SSL/TLS Analysis
 # 8- Generate Intensive Report
 
 # SCANNING
@@ -36,3 +37,6 @@
 
 
 ## build easy to use and fast GUI
+
+Jasper is Security Testing Toolkit. It can be used to assess and detect flaws in the security measures in an Information System.
+The Security testing method does not ensure that flaws are not present in the System due to the fast updates of new vulnerabilities discovered everyday.
