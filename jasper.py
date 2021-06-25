@@ -1,9 +1,11 @@
-#! /usr/bin/env python3
+#! /usip=Nonenv python3
 import time
 
 import keyboard
 from PyQt5.QtWidgets import QApplication
 from pyfiglet import Figlet
+from scapy.all import *
+from scapy.layers.http import http_request
 from termcolor import colored
 from dialogsGUI import *
 from tqdm import tqdm
@@ -11,6 +13,7 @@ import prettytable
 import logging
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 from socket import getservbyname, getservbyport
+
 
 try:
     from scapy.all import *
@@ -80,7 +83,7 @@ def liveSniffing():
     print(colored("Sniffig Traffic Will Start Using Interace: ","yellow"),listeniface)
     print(colored("To Stop Sniffing Use: ","yellow"),'Ctrl c')
     while (True):
-        print(colored("To Start Sniffing Choose The Mode:\ns- Summery Mode\nd- Detailed Mode","yellow"))
+        print(colored("To Start Sniffing Choose The Mode:\ns- Summery Mode\nd- Detailed Mode\nc- Cancel","yellow"))
         inp=input()
         if(inp =='d'):
             pkt=sniff(iface=listeniface,prn=lambda x:x.sniffed_on+": "+str(x.show()))
@@ -89,6 +92,9 @@ def liveSniffing():
             if(inp =='s'):
                 pkt=sniff(iface=listeniface,prn=lambda x:x.sniffed_on+": "+str(x.summary()))
                 break
+            else:
+                if(inp=="c"):
+                    mainmenu()
 
     return pkt
 
@@ -187,13 +193,19 @@ def scanOpenPorts():
             print(table1)
 
     print(colored("Scanning "+ip,"green"),"\t\t"+"Esc To Stop")
+    table2=prettytable.PrettyTable(["Port Number","Port Name","Status"])
 
     for p in range(0,40404,100):
         ans, unans = sr(IP(dst=ip) /TCP(dport=[i for i in range(p, p+100)], sport = RandShort(), flags = "S"), timeout = 15,verbose=0)
-        ans.summary(lfilter=lambda s, r: r.sprintf("%TCP.flags%") == "SA",prn = lambda s, r: r.sprintf("%TCP.sport% is open\t [TCP]"))
+        #ans.summary(lfilter=lambda s, r: r.sprintf("%TCP.flags%") == "SA",prn = lambda s, r: r.sprintf("%TCP.sport% is open\t [TCP]"))
+        ans.summary(lfilter=lambda s, r: r.sprintf("%TCP.flags%") == "SA",prn=lambda s,r: table2.add_row([getservbyname(r.sprintf("%TCP.sport%")),r.sprintf("%TCP.sport%") ,"Open"]))
         #TODO: add stealth scanning
         time.sleep(0.5)
-        print("\t\t\t\t\t[",p+100 ," Ports Scanned]")
+        os.system("clear")
+        print(colored("IP:" + ip, "green"), "\t\t" + "Esc To Stop")
+
+        print("[",p+100 ," Ports Scanned]\t\t Esc To Stop")
+        print(table2)
         try:
             if(keyboard.is_pressed("Esc")):
                 print("Exiting the San!")
@@ -201,6 +213,7 @@ def scanOpenPorts():
         except:
             #            print(colored("Permission Required for Terminal in OS","red"))
             continue
+    return table2
 
 def scanOpenPortsMass():
     global ans_arpPing,unans_arpPing
@@ -231,7 +244,7 @@ def scanOpenPortsMass():
             table1.add_row([i,hostListIP[i],hostListMAC[i]])
 
             i+=1
-        table1.add_row(['m', "Manual", "Manual"])
+        table1.add_row(['m', "Other IP", "Manual"])
         table1.add_row(['s', "Start Scanning", ""])
         table1.add_row(['b', "Back To Main Menu", ""])
         print(table1)
@@ -247,12 +260,18 @@ def scanOpenPortsMass():
                     print(colored("Worng Option","red"))
             else:
                 if(inp=='m'):
-                    ip += [input("Enter The IP Address:")]
+                    tmp = [input("Enter The IP Address:")]
+                    if(tmp not in ip):
+                        ip +=tmp
+                        print(colored("Scan List= " + str(ip), "yellow"))
                 else:
                     if(inp=='s'):
                         break
                     else:
-                        print(colored("Worng Option", "red"))
+                        if(inp=="b"):
+                            mainmenu()
+                        else:
+                            print(colored("Worng Option", "red"))
 
             print(colored("Choose The Index Number For IP Address From The List:","yellow"))
             i=0
@@ -269,7 +288,7 @@ def scanOpenPortsMass():
         #TODO: add stealth scanning
         time.sleep(0.5)
         os.system("clear")
-        print("[",p+100 ," Ports Scanned]")
+        print("[",p+100 ," Ports Scanned]\t\t Esc To Stop")
         print(table2.get_string(sortby="IP Address"))
 
         try:
@@ -280,6 +299,87 @@ def scanOpenPortsMass():
             #            print(colored("Permission Required for Terminal in OS","red"))
             continue
 
+    return table2
+
+def tcpTraceRoute(ip):
+    if (ip == ""):
+        ipaddress = input(colored("Enter IP Address:", "yellow"))
+    else:
+        ipaddress=ip
+    paths=[]
+    locations=[]
+    ans,uans=traceroute(ipaddress,verbose=0)
+
+        ##TCP traceroute
+        #ans, unans = sr(IP(dst=ip, ttl=(4, 25), id=RandShort()) / TCP(flags=0x2))
+    try:
+        for snd, rcv in ans:
+            paths+=[[snd.ttl, rcv.src, isinstance(rcv.payload,TCP)]]
+            if(isinstance(rcv.payload,TCP)):
+                break # if the right ip address for the domain detected then break
+    except:
+        print(colored("Unable to execute traceroute!", "red"))
+        mainmenu()
+
+    # Take the IP address only and translate it using ip-api.com service
+    for p in paths:
+        #print(p[1])
+        req=http_request("ip-api.com", "/csv/"+p[1])
+        for r in req:
+             locations+=[str(r.load).split(",")]
+    traceRouteTable=prettytable.PrettyTable(["TTL","IP Address","Translation","Country","City","Latitude","Longitude","Company"])
+    i=0
+    for data in locations:
+
+        if(data[0]=="b'success"):
+            traceRouteTable.add_row([paths[i][0],paths[i][1],data[0],data[1],data[5],data[7],data[8],data[10]])
+        else:
+            traceRouteTable.add_row([paths[i][0],paths[i][1],data[0],data[1],"","","",""])
+        i+=1
+
+    if(ip==""):
+        print(traceRouteTable)
+
+    return traceRouteTable
+
+def resolveDNS(ip):
+    if (ip == ""):
+        ipaddress = input(colored("Enter Domain name or IP Address:", "yellow"))
+    else:
+        ipaddress = ip
+    paths = []
+    locations = []
+    ans, uans = traceroute(ipaddress, verbose=0)
+
+    try:
+        for snd, rcv in ans:
+            if (isinstance(rcv.payload, TCP)):
+                paths += [[snd.ttl, rcv.src, isinstance(rcv.payload, TCP)]]
+                break  # if the right ip address for the domain detected then break
+    except:
+        print(colored("Unable to Resolve IP!", "red"))
+        mainmenu()
+
+    # Take the IP address only and translate it using ip-api.com service
+
+    # print(p[1])
+    req = http_request("ip-api.com", "/csv/" + paths[0][1])
+    for r in req:
+        locations += [str(r.load).split(",")]
+    ResolveTable = prettytable.PrettyTable(
+        ["TTL", "IP Address", "Translation", "Country", "City",  "Latitude","Longitude", "Company"])
+    i = 0
+    for data in locations:
+        if (data[0] == "b'success"):
+            ResolveTable.add_row([paths[i][0], paths[i][1], data[0], data[1], data[5], data[7], data[8], data[10]])
+        else:
+            ResolveTable.add_row([paths[i][0],paths[i][1],data[0],data[1],"","","",""])
+        i += 1
+
+    if (ip == ""):
+        print(ResolveTable)
+
+    return ResolveTable
 
 
 def setConfiguration():
@@ -311,50 +411,51 @@ def aboutJasper():
 
 def mainmenu():
     global pkt,ans_arpPing,unans_arpPing
-    optionsGeneral =['-----GENERAL--------','ga- Live Sniffing','gb- Read Capture File','gc- Save Capture File','gd- About Jasper','xx- Exit Jasper\t']
-    optionsAnalysis=['-----ANALYSIS--------','aa- Resolve DNS Names','ab- Save GeoWord Trace Route',
+    optionsProb =['-----PROBE--------','pa- Live Sniffing','pb- Read Capture File','pc- Save Capture File','\t\t','\t\t']
+    optionsGeneral =['-----GENERAL--------','ga- About Jasper','xx- Exit Jasper\t','\t\t','\t\t','\t\t']
+    optionsAnalysis=['-----ANALYSIS--------\t','aa- Resolve DNS Names\t','ab- Save GeoWord Trace Route',
                      'ac- Save Packet structure','ad- Save Conversations','ae- Generate Intensive Report']
     optionsScan =['-----SCAN--------','sa- List Hosts\t','sb- Open Ports(Single)','sc- Open Ports(Mass)',
                   'sd- Trace Route','\t\t','\t\t','\t\t','\t\t']
-    optionsAttacks=['-----ATTACKS--------','ta- Vulnerability Scanning','tb- ARP Poisning (MiTMA)',
+    optionsAttacks=['-----ATTACKS--------\t','ta- Vulnerability Scanning','tb- ARP Poisning (MiTMA)',
                     'tc- Fake SSL (MiTMA)','td- Fuzzing','te- Reply Attack','tf- Construct & Send Packet',
                     'tg- Deny of Service DoS','th- Save Vulnerability List']
-    optionsConfiguration=['-----CONFIGURATION------','ca- Advanced Mode','cb- Configuration']
+    optionsConfiguration=['-----CONFIGURATION------','ca- Advanced Mode','cb- Configuration','\t\t','\t\t','\t\t','\t\t','\t\t','\t\t']
 
     os.system("clear")
     while(True):
-        print(colored(f.renderText('Jasper >>>'), "red"))
-        print(colored('\t\t\t\tEthical Hacking Toolkit', 'white'))
-        print(colored('\t\t\t\tVersion:', 'white'), colored('0.1', 'green'))
-        for opt1,opt2 in zip(optionsGeneral,optionsAnalysis):
-            print(colored(opt1,'green'),"\t",colored(opt2,'yellow'))
+        print(colored(f.renderText('  Jasper >>>'), "red"))
+        print(colored('\t\t\t\t\t\t\t\tEthical Hacking Toolkit', 'white'))
+        print(colored('\t\t\t\t\t\t\t\tVersion:', 'white'), colored('0.1', 'green'))
+        for opt1,opt2 ,opt3 in zip(optionsProb,optionsAnalysis,optionsGeneral):
+            print(colored(opt1,'green'),"\t",colored(opt2,'green'),"\t",colored(opt3,'green'))
 
-        for opt1,opt2 in zip(optionsScan,optionsAttacks):
-            print(colored(opt1,'green'),"\t",colored(opt2,'yellow'))
+        for opt1,opt2,opt3 in zip(optionsScan,optionsAttacks,optionsConfiguration):
+            print(colored(opt1,'green'),"\t",colored(opt2,'yellow'),"\t",colored(opt3,'green'))
 
-        for opt1 in optionsConfiguration:
-            print(colored(opt1,'green'))
+        # for opt1 in optionsConfiguration:
+        #     print(colored(opt1,'green'))
 
         inp=input("Enter code name:")
 
-        if (inp=="ga"):
+        if (inp=="pa"):
             pkt=liveSniffing()
         else:
-            if(inp=="gb"):
+            if(inp=="pb"):
                 dialog = dialogsGUI()
                 fileName, ext = dialog.openFileNameDialog()
                 if (str(ext) == ""):
                     mainmenu()
                 pkt=readPCAP(fileName)
             else:
-                if (inp=="gc"):
+                if (inp=="pc"):
                     dialog = dialogsGUI()
                     fileName, ext = dialog.saveFileDialog()
                     if (str(ext) == ""):
                         mainmenu()
                     savePCAP(fileName,pkt)
                 else:
-                    if(inp=="gd"):
+                    if(inp=="ga"):
                         aboutJasper()
                     else:
                         pass
@@ -362,13 +463,13 @@ def mainmenu():
                         ans_arpPing, unans_arpPing=arpPing("")
                     else:
                         if(inp=="sb"):
-                            scanOpenPorts()
+                            scanPortSingleTable=scanOpenPorts()
                         else:
                             if (inp == "sc"):
-                                scanOpenPortsMass()
+                                scanPortSingleTable=scanOpenPortsMass()
                             else:
-                                if (inp == "ca"):
-                                    advanceMode()
+                                if (inp == "sd"):
+                                    tracerouteTable=tcpTraceRoute("")
                                 else:
                                     if (inp == "cb"):
                                         setConfiguration()
@@ -377,13 +478,28 @@ def mainmenu():
                                             exit()
                                             sys.exit(app.exec_())
                                         else:
-                                            print("Wrong OPT")
+                                            if (inp == "ca"):
+                                                advanceMode()
+                                            else:
+                                                if(inp=="aa"):
+                                                    resolveDNS("")
+                                                else:
+                                                    print("Wrong OPT")
 
 
 
+tracerouteTable=""
+scanPortSingleTable=""
+scanPortMassTable=""
 app = QApplication(sys.argv)
 mainmenu()
 
 #####TESTS####
 #ans_arpPing,unans_arpPing= arpPing(net="192.168.1.0/24")
 #scanOpenPorts()
+
+#tcpTraceRoute("")
+#print(tcpTraceRoute(["www.google.com"]))
+
+#print(resolveDNS(["www.python.org"]))
+#print(resolveDNS("142.250.181.36"))
