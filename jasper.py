@@ -1,4 +1,5 @@
 #! /usip=Nonenv python3
+import datetime
 import time
 
 import keyboard
@@ -13,6 +14,11 @@ import prettytable
 import logging
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 from socket import getservbyname, getservbyport
+from modules.pygmaps import pygmaps
+import datetime as date
+
+
+
 
 
 try:
@@ -28,7 +34,7 @@ f = Figlet(font='standard')
 
 conf.verb=1
 ifacelist=[]
-pkt= scapy.sendrecv
+pkt= ""
 ans_arpPing= ""
 unans_arpPing=""
 def advanceMode():
@@ -95,6 +101,8 @@ def liveSniffing():
             else:
                 if(inp=="c"):
                     mainmenu()
+                else:
+                    print(colored("Wrong Opt","red"))
 
     return pkt
 
@@ -308,6 +316,7 @@ def tcpTraceRoute(ip):
         ipaddress=ip
     paths=[]
     locations=[]
+    traceRoutelist =[]
     ans,uans=traceroute(ipaddress,verbose=0)
 
         ##TCP traceroute
@@ -328,19 +337,22 @@ def tcpTraceRoute(ip):
         for r in req:
              locations+=[str(r.load).split(",")]
     traceRouteTable=prettytable.PrettyTable(["TTL","IP Address","Translation","Country","City","Latitude","Longitude","Company"])
+    traceRoutelist=[["TTL","IP Address","Translation","Country","City","Latitude","Longitude","Company"]]
     i=0
     for data in locations:
 
         if(data[0]=="b'success"):
             traceRouteTable.add_row([paths[i][0],paths[i][1],data[0],data[1],data[5],data[7],data[8],data[10]])
+            traceRoutelist+=[[paths[i][0],paths[i][1],data[0],data[1],data[5],data[7],data[8],data[10]]]
         else:
             traceRouteTable.add_row([paths[i][0],paths[i][1],data[0],data[1],"","","",""])
+            traceRoutelist+=[[paths[i][0], paths[i][1], data[0], data[1], "", "", "", ""]]
         i+=1
 
     if(ip==""):
         print(traceRouteTable)
 
-    return traceRouteTable
+    return traceRouteTable,traceRoutelist
 
 def resolveDNS(ip):
     if (ip == ""):
@@ -381,6 +393,111 @@ def resolveDNS(ip):
 
     return ResolveTable
 
+def geoShow(path,passive):
+    global tracerouteTable,tracerouteList
+    points = []
+    #print(path)
+    if(passive==0):
+        if (path ==""):
+            print(colored("The Path Tracing is Empty, Kindly Choose an Option:\na- Enter IP or Domain Manually\nb- Back to Main Menue", "yellow"))
+            while(True):
+                opt = input()
+                if (opt == "b"):
+                    mainmenu()
+                else:
+                    if (opt == "a"):
+                        ip = input("Enter The IP or Domain Name:")
+                        tracerouteTable,tracerouteList=tcpTraceRoute(ip)
+                        path=tracerouteList
+                        break
+                    else:
+                        print(colored("Wrong OPT","red"))
+        else:
+            print(colored(
+                "The Path Tracing Contains Info, Kindly Choose an Option:\na- Show The Current Path on Map\nb- Enter IP or Domain Manually\nc- Back to Main Menue",
+                "yellow"))
+            while (True):
+                opt = input()
+                if (opt == "c"):
+                    mainmenu()
+                else:
+                    if (opt == "b"):
+                        ip = input("Enter The IP or Domain Name:")
+                        tracerouteTable, tracerouteList = tcpTraceRoute(ip)
+                        path=tracerouteList
+                        break
+                    else:
+                        if(opt =="a"):
+                            break
+                        else:
+                            print(colored("Wrong OPT", "red"))
+
+    mymap = pygmaps(24.4539, 30.3773, 3)  # Starting point for the map and zoom level
+
+    for i in range(1, len(path), 1):
+        if(path[i][2]=="b'success"):
+            #TODO: add company name to the points (label)
+            mymap.addpoint(float(path[i][5]), float(path[i][6]), '#0000FF')
+            temp = (float(path[i][5]), float(path[i][6]))
+            if temp not in points:
+                 points.append(temp)
+        if((path[i][0]=="TTL") & (i>0)):
+            #print(points)
+            mymap.addpath(points, "#"+hex(RandByte())[2:].upper()+hex(RandByte())[2:].upper()+hex(RandByte())[2:].upper())
+            points=[]
+
+    #print(points)
+    mymap.addpath(points, "#F0FF00")
+    ext=date.datetime.now()
+    fileName="output/traceroute"+str(ext)+".html"
+    mymap.draw(fileName)
+    print(colored("The File Generated in "+fileName,"yellow"))
+    return fileName
+
+def packetStructure(pkt):
+
+    if(pkt==""):
+        print(colored("No Packet Loaded In The Application. Read PCAP File or Sniff New Traffic From The Main Menu,"
+                      " Press Enter To Continue","yellow"))
+        input()
+        mainmenu()
+    while (True):
+        print(colored("Choose An Option:\nl- List Packets Summery\nd- Show Packet Detailes"
+                      "\ne- Export Packet Stracture\nc- Cancel","yellow"))
+        inp=input()
+        if(inp =='l'):
+            print("Packets Summary")
+            for p in range(len(pkt)):
+                print("["+str(p)+"]",pkt[p].summary())
+        else:
+            if(inp =='d'):
+                print("Packet Details")
+                start=input(colored("Enter Start Packet Index [0 - "+str(len(pkt)-1)+") ]:","yellow"))
+                end=input(colored("Enter End Packet Index [0 - "+str(len(pkt)-1)+") ]:","yellow"))
+                if(start==""):
+                    start=0
+                if(end==""):
+                    end=len(pkt)
+                for p in range(int(start),int(end)+1):
+                    print("["+str(p)+"]",pkt[p].show())
+            else:
+                if(inp=="e"):
+                    print("export packet structure")
+                    start = int(input(colored("Enter Start Packet Index [0 - " + str(len(pkt) - 1) + ") ]:", "yellow")))
+                    end = int(input(colored("Enter End Packet Index [0 - " + str(len(pkt) - 1) + ") ]:", "yellow")))
+                    ext = date.datetime.now()
+                    fileName = "output/Paket_Structure_" + str(ext) + ".pdf"
+                    pkt[start:end+1].pdfdump(filename=fileName, layer_shift=1)
+                    print(colored("File Exported in "+fileName,"green"))
+
+                else:
+                    if(inp=="c"):
+                        mainmenu()
+                    else:
+                        print(colored("Wrong Opt","red"))
+
+
+
 
 def setConfiguration():
     print(colored("Configuration\na- Add Interface\nb- Remove interface","yellow"))
@@ -410,17 +527,21 @@ def aboutJasper():
 
 
 def mainmenu():
-    global pkt,ans_arpPing,unans_arpPing
+    global pkt,ans_arpPing,unans_arpPing,tracerouteTable,tracerouteList,scanPortSingleTable,scanPortMassTable
+
+    if not os.path.exists("output"):
+        os.makedirs("output")
+
     optionsProb =['-----PROBE--------','pa- Live Sniffing','pb- Read Capture File','pc- Save Capture File','\t\t','\t\t']
-    optionsGeneral =['-----GENERAL--------','ga- About Jasper','xx- Exit Jasper\t','\t\t','\t\t','\t\t']
-    optionsAnalysis=['-----ANALYSIS--------\t','aa- Resolve DNS Names\t','ab- Save GeoWord Trace Route',
-                     'ac- Save Packet structure','ad- Save Conversations','ae- Generate Intensive Report']
+    optionsGeneral =['-----GENERAL--------','ga- About Jasper','xx- Exit Jasper\t','-----MODULES-------','ma- List Modules','mb- Add New Module']
+    optionsAnalysis=['-----ANALYSIS--------\t','aa- Resolve DNS Names\t','ab- Geographic Trace Route',
+                     'ac- Packet structure\t','ad- Conversations\t','ae- Crossover Two PCAPS']
     optionsScan =['-----SCAN--------','sa- List Hosts\t','sb- Open Ports(Single)','sc- Open Ports(Mass)',
                   'sd- Trace Route','\t\t','\t\t','\t\t','\t\t']
     optionsAttacks=['-----ATTACKS--------\t','ta- Vulnerability Scanning','tb- ARP Poisning (MiTMA)',
                     'tc- Fake SSL (MiTMA)','td- Fuzzing','te- Reply Attack','tf- Construct & Send Packet',
                     'tg- Deny of Service DoS','th- Save Vulnerability List']
-    optionsConfiguration=['-----CONFIGURATION------','ca- Advanced Mode','cb- Configuration','\t\t','\t\t','\t\t','\t\t','\t\t','\t\t']
+    optionsConfiguration=['-----CONFIGURATION--','ca- Advanced Mode','cb- Configuration','\t\t','\t\t','\t\t','\t\t','\t\t','\t\t']
 
     os.system("clear")
     while(True):
@@ -429,7 +550,7 @@ def mainmenu():
         print(colored('\t\t\t\t\t\t\t\tVersion:', 'white'), colored('0.1', 'green'))
         for opt1,opt2 ,opt3 in zip(optionsProb,optionsAnalysis,optionsGeneral):
             print(colored(opt1,'green'),"\t",colored(opt2,'green'),"\t",colored(opt3,'green'))
-
+        print("")
         for opt1,opt2,opt3 in zip(optionsScan,optionsAttacks,optionsConfiguration):
             print(colored(opt1,'green'),"\t",colored(opt2,'yellow'),"\t",colored(opt3,'green'))
 
@@ -469,7 +590,7 @@ def mainmenu():
                                 scanPortSingleTable=scanOpenPortsMass()
                             else:
                                 if (inp == "sd"):
-                                    tracerouteTable=tcpTraceRoute("")
+                                    tracerouteTable,tracerouteList=tcpTraceRoute("")
                                 else:
                                     if (inp == "cb"):
                                         setConfiguration()
@@ -484,11 +605,18 @@ def mainmenu():
                                                 if(inp=="aa"):
                                                     resolveDNS("")
                                                 else:
-                                                    print("Wrong OPT")
+                                                    if (inp=="ab"):
+                                                        mapFile=geoShow(tracerouteList,passive=0)
+                                                    else:
+                                                        if (inp == "ac"):
+                                                             packetStructure(pkt=pkt)
+                                                        else:
+                                                            print("Wrong OPT")
 
 
 
 tracerouteTable=""
+tracerouteList=""
 scanPortSingleTable=""
 scanPortMassTable=""
 app = QApplication(sys.argv)
@@ -503,3 +631,12 @@ mainmenu()
 
 #print(resolveDNS(["www.python.org"]))
 #print(resolveDNS("142.250.181.36"))
+#tracerouteTable,tracerouteList=tcpTraceRoute("www.google.com")
+#t1,t2=tcpTraceRoute("www.skynewsarabia.com")
+#tracerouteList+=t2
+#t1,t2=tcpTraceRoute("www.orange.fr")
+#tracerouteList+=t2
+
+#geoShow(path=tracerouteList,passive=1)
+
+#packetStructure(pkt)
