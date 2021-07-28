@@ -1,5 +1,5 @@
 # JASPER
-**Jasper** is simple toolkit that built on top of scapy library. The toolkit support the following functionalities:
+**Jasper** is simplified network probing toolkit that built on top of scapy library. The toolkit support the following functionalities:
 * Probe
 * Scan
 * Analysis
