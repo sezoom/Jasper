@@ -568,7 +568,7 @@ def mainmenu():
     os.system("clear")
     while(True):
         print(colored(f.renderText('  Jasper >>>'), "red"))
-        print(colored('\t\t\t\t\t\t\t\tEthical Hacking Toolkit', 'white'))
+        print(colored('\t\t\t\t\t\t\t\tNetwork Probing Toolkit', 'white'))
         print(colored('\t\t\t\t\t\t\t\tVersion:', 'white'), colored('0.1', 'green'))
         for opt1,opt2 ,opt3 in zip(optionsProb,optionsAnalysis,optionsGeneral):
             print(colored(opt1,'green'),"\t",colored(opt2,'green'),"\t",colored(opt3,'green'))
