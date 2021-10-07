@@ -12,7 +12,7 @@
 
 ```
 pip3 install --pre scapy[complete]
-pip3 install pyfiglet, termcolor, prettytable, keyboard,PyQt5
+pip3 install pyfiglet termcolor  prettytable  keyboard PyQt5 pandas numpy
 ```
 To run the application:
 ```
