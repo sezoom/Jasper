@@ -39,7 +39,9 @@ logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 from socket import getservbyname, getservbyport
 from modules.pygmaps import pygmaps
 import datetime as date
-
+import pandas as pd
+import numpy as np
+import binascii
 
 
 
@@ -376,7 +378,9 @@ def tcpTraceRoute(ip):
 
     return traceRouteTable,traceRoutelist
 
+
 def resolveDNS(ip):
+
     if (ip == ""):
         ipaddress = input(colored("Enter Domain name or IP Address:", "yellow"))
     else:
@@ -394,24 +398,64 @@ def resolveDNS(ip):
         print(colored("Unable to Resolve IP!", "red"))
         mainmenu()
 
+    print (ipaddress)
+    print (paths)
+
     # Take the IP address only and translate it using ip-api.com service
 
     # print(p[1])
-    req = http_request("ip-api.com", "/csv/" + paths[0][1])
-    for r in req:
-        locations += [str(r.load).split(",")]
     ResolveTable = prettytable.PrettyTable(
-        ["TTL", "IP Address", "Translation", "Country", "City",  "Latitude","Longitude", "Company"])
-    i = 0
-    for data in locations:
-        if (data[0] == "b'success"):
-            ResolveTable.add_row([paths[i][0], paths[i][1], data[0], data[1], data[5], data[7], data[8], data[10]])
-        else:
-            ResolveTable.add_row([paths[i][0],paths[i][1],data[0],data[1],"","","",""])
-        i += 1
+        ["TTL", "IP Address", "Translation", "Country", "City", "Latitude", "Longitude", "Company"])
+    try:
+        req = http_request("ip-api.com", "/csv/" + paths[0][1])
+        for r in req:
+            locations += [str(r.load).split(",")]
+
+        i = 0
+        for data in locations:
+            if (data[0] == "b'success"):
+                ResolveTable.add_row([paths[i][0], paths[i][1], data[0], data[1], data[5], data[7], data[8], data[10]])
+            else:
+                ResolveTable.add_row([paths[i][0],paths[i][1],data[0],data[1],"","","",""])
+            i += 1
+
+    except Exception as e:
+        print (e)
 
     if (ip == ""):
         print(ResolveTable)
+
+    return ResolveTable
+#function require list not string
+def ipAddressDetails(listIps):
+
+    locations = []
+    # print(p[1])
+    ResolveTable = prettytable.PrettyTable(
+        ["TTL", "IP Address", "Translation", "Country", "City", "Latitude", "Longitude", "Company"])
+    idx=0
+    try:
+        for ip in listIps:
+            print (idx,ip)
+
+            req = http_request("ip-api.com", "/csv/" + str(ip))
+            for r in req:
+                locations += [str(r.load).split(",")]
+
+            i = 0
+            for data in locations:
+                if (data[0] == "b'success"):
+                    ResolveTable.add_row([idx, ip, data[0], data[1], data[5], data[7], data[8], data[10]])
+                else:
+                    ResolveTable.add_row([idx,ip,data[0],data[1],"","","",""])
+                i += 1
+                idx+=1
+            locations = []
+
+    except Exception as e:
+        print (e)
+
+    print (ResolveTable)
 
     return ResolveTable
 
@@ -475,6 +519,180 @@ def geoShow(path,passive):
     mymap.draw(fileName)
     print(colored("The File Generated in "+fileName,"yellow"))
     return fileName
+
+def convertToDataframe(pkt):
+    global df
+    if(pkt==""):
+        print(colored("No Packet Loaded In The Application. Read PCAP File or Sniff New Traffic From The Main Menu,\nThen Convert it to Dataframe,"
+                      " Press Enter To Continue","yellow"))
+        input()
+        mainmenu()
+    else:
+        print("Converting in Process... ")
+        # ip_fields = [field.name for field in IP().fields_desc]
+        # tcp_fields = [field.name for field in TCP().fields_desc]
+        # udp_fields = [field.name for field in UDP().fields_desc]
+        ip_fields = ['src', 'dst']
+        tcp_fields = ['sport', 'dport', 'chksum', 'urgptr']
+        udp_fields = ['sport', 'dport', 'len', 'chksum']
+
+        dataframe_fields = ip_fields + ['time'] + tcp_fields + ['payload_size']
+
+        df = pd.DataFrame(columns=dataframe_fields)
+        for packet in tqdm(pkt[IP]):
+            field_values = []
+            for field in ip_fields:
+                field_values.append(packet[IP].fields[field])
+
+            field_values.append(packet.time)
+
+            layer_type = type(packet[IP].payload)
+            for field in tcp_fields:
+                try:
+                    field_values.append(packet[layer_type].fields[field])
+                except:
+                    field_values.append(None)
+
+            field_values.append(len(packet[layer_type].payload))
+
+            # Add row to DF
+            df_append = pd.DataFrame([field_values], columns=dataframe_fields)
+            df = pd.concat([df, df_append], axis=0)
+
+        # Reset Index
+        df = df.reset_index()
+        df = df.drop(columns="index")
+        print("DONE... ")
+
+def packetAnalysis():
+    global df
+    uniqueSRC = df['src'].unique()
+    uniqueDST = df['dst'].unique()
+    ip = []
+    print("Analysis")
+
+    print(colored("Choose The Index Number For IP Address From The List:", "yellow"))
+    i = 0
+    table1 = prettytable.PrettyTable(["INDEX", "IP ADDRESS"])
+    table1.align["INDEX"] = "l"
+    while (i < len(uniqueSRC)):
+        table1.add_row([i, uniqueSRC[i]])
+        i += 1
+    table1.add_row(['s', "Start Analysis"])
+    table1.add_row(['b', "Back To Main Menu"])
+    print(table1)
+    while (True):
+        inp = input("$>: ")
+        if (inp.isdigit()):
+            inp = int(inp)
+            if (inp < len(uniqueSRC)):
+                if (uniqueSRC[inp] not in ip):
+                    ip += [uniqueSRC[inp]]
+                print(colored("The List= " + str(ip), "yellow"))
+            else:
+                print(colored("Worng Option", "red"))
+        else:
+            if (inp == 's'):
+                break
+            else:
+                if (inp == "b"):
+                    mainmenu()
+                else:
+                    print(colored("Worng Option", "red"))
+
+        print(colored("Choose The Index Number For IP Address From The List:", "yellow"))
+        i = 0
+        print(table1)
+
+
+    dfanalysis = [pd.DataFrame] * len(ip)
+    for i in range(len(ip)):
+        dfanalysis[i] = df.loc[(df['src'] == str(ip[i]))]
+        #print(dfanalysis[i])
+
+        sumDst= dfanalysis[i].groupby("dst")['payload_size'].sum()
+        v = pd.DataFrame(sumDst)
+        print(colored("The IP Address "+ str(ip[i])+" Communicated With The Following:","yellow"))
+        sortedValues=v.sort_values(['payload_size'], ascending=False)
+        print(sortedValues)
+
+        # print(colored("More Details:","yellow"))
+        # uniqueUserDst = dfanalysis[i]['dst'].unique()
+        # for val in uniqueUserDst:
+        #     resolveDNS(str(val))
+        #     time.sleep(10)
+        # print("")
+
+
+    for i in range(len(ip)):
+        #try:
+            print(colored("The Unique Distinations Reached " + str(ip[i]) + " by Excluding Shared Distinations:", "yellow"))
+
+            NEWDST =dfanalysis[i]['dst'].unique()
+            BaseDST=[]
+            for rem in range(len(ip)):
+                if(i==rem):
+                    continue
+                tmp=[dfanalysis[rem]['dst'].unique()]
+                for tmp_v in tmp:
+                    for tmp_v2 in tmp_v:
+                        BaseDST+=[tmp_v2]
+
+            # print("BASEDST",BaseDST)
+            # print("NEWDST",NEWDST)
+            for NEWDST_val in NEWDST:
+                if (NEWDST_val not in BaseDST):
+                    print(NEWDST_val)
+            print("")
+       # except Exception as e:
+       #     print("Error"+str(e))
+
+def packetConversations(pkt):
+    global df
+    if(pkt==""):
+        print(colored("No Packet Loaded In The Application. Read PCAP File or Sniff New Traffic From The Main Menu,\nThen Convert it to Dataframe,"
+                      " Press Enter To Continue","yellow"))
+        input()
+        mainmenu()
+
+    if (df.empty):
+        print(colored(
+            "No Dataframe Loaded, Use Option \"Converting to Dataframe\" in Main Menue"
+            " Press Enter To Continue", "yellow"))
+        input()
+        mainmenu()
+
+
+
+    while (True):
+        print(colored("Choose An Option:\ng- List General Statistics\nx- Analysis\nc- Cancel","yellow"))
+        inp=input()
+        if(inp =='g'):
+            print("General Statistics")
+
+            print("\nTop Sending Addresses")
+            #print(df[['src', 'dst', 'sport', 'dport']])
+            sourceAddresses = df.groupby("src")['payload_size'].sum()
+            v = pd.DataFrame(sourceAddresses)
+            print(v.sort_values(['payload_size'], ascending=False))
+
+
+            print("\n\nTop Recieving Addresses")
+            destinationAddresses = df.groupby("dst")['payload_size'].sum()
+            v = pd.DataFrame(destinationAddresses)
+            print(v.sort_values(['payload_size'], ascending=False))
+
+        else:
+            if(inp =='x'):
+               packetAnalysis()
+
+            else:
+                if(inp=="c"):
+                    mainmenu()
+                else:
+                    print(colored("Wrong Opt","red"))
+
+
 
 def packetStructure(pkt):
 
@@ -554,12 +772,12 @@ def mainmenu():
     if not os.path.exists("output"):
         os.makedirs("output")
 
-    optionsProb =['-----PROBE--------','pa- Live Sniffing','pb- Read Capture File','pc- Save Capture File','\t\t','\t\t']
+    optionsProb =['-----PROBE--------\t','pa- Live Sniffing\t','pb- Read Capture File\t','pc- Save Capture File\t','pd- Convert to DataFrame','\t\t\t']
     optionsGeneral =['-----GENERAL--------','ga- About Jasper','xx- Exit Jasper\t','-----MODULES-------','ma- List Modules','mb- Add New Module']
     optionsAnalysis=['-----ANALYSIS--------\t','aa- Resolve DNS Names\t','ab- Geographic Trace Route',
                      'ac- Packet structure\t','ad- Conversations\t','ae- Crossover Two PCAPS']
-    optionsScan =['-----SCAN--------','sa- List Hosts\t','sb- Open Ports(Single)','sc- Open Ports(Mass)',
-                  'sd- Trace Route','\t\t','\t\t','\t\t','\t\t']
+    optionsScan =['-----SCAN--------\t','sa- List Hosts\t\t','sb- Open Ports(Single)\t','sc- Open Ports(Mass)\t',
+                  'sd- Trace Route\t\t','\t\t\t','\t\t\t','\t\t\t','\t\t\t']
     optionsAttacks=['-----ATTACKS--------\t','ta- Vulnerability Scanning','tb- ARP Poisning (MiTMA)',
                     'tc- Fake SSL (MiTMA)','td- Fuzzing','te- Reply Attack','tf- Construct & Send Packet',
                     'tg- Deny of Service DoS','th- Save Vulnerability List']
@@ -633,7 +851,13 @@ def mainmenu():
                                                         if (inp == "ac"):
                                                              packetStructure(pkt=pkt)
                                                         else:
-                                                            print("Wrong OPT")
+                                                            if (inp == "ad"):
+                                                                packetConversations(pkt=pkt)
+                                                            else:
+                                                                if (inp == "pd"):
+                                                                    convertToDataframe(pkt=pkt)
+                                                                else:
+                                                                    print("Wrong OPT")
 
 
 
@@ -641,6 +865,7 @@ tracerouteTable=""
 tracerouteList=""
 scanPortSingleTable=""
 scanPortMassTable=""
+df= pd.DataFrame()
 app = QApplication(sys.argv)
 mainmenu()
 
