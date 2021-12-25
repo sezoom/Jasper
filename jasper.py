@@ -657,7 +657,7 @@ def packetConversations(pkt):
 
     if (df.empty):
         print(colored(
-            "No Dataframe Loaded, Use Optopn Converting to Dataframe in Main Menue"
+            "No Dataframe Loaded, Use Option \"Converting to Dataframe\" in Main Menue"
             " Press Enter To Continue", "yellow"))
         input()
         mainmenu()
