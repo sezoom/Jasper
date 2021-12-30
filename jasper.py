@@ -509,7 +509,7 @@ def geoShow(path,passive):
                  points.append(temp)
         if((path[i][0]=="TTL") & (i>0)):
             #print(points)
-            mymap.addpath(points, "#FF0000")
+            mymap.addpath(points, "#"+hex(RandByte())[2:].upper()+hex(RandByte())[2:].upper()+hex(RandByte())[2:].upper())
             points=[]
 
     #print(points)
@@ -589,7 +589,6 @@ def packetAnalysis():
                 if (uniqueSRC[inp] not in ip):
                     ip += [uniqueSRC[inp]]
                 print(colored("The List= " + str(ip), "yellow"))
-
             else:
                 print(colored("Worng Option", "red"))
         else:
@@ -615,7 +614,6 @@ def packetAnalysis():
         v = pd.DataFrame(sumDst)
         print(colored("The IP Address "+ str(ip[i])+" Communicated With The Following:","yellow"))
         sortedValues=v.sort_values(['payload_size'], ascending=False)
-
         print(sortedValues)
 
         # print(colored("More Details:","yellow"))
@@ -629,7 +627,7 @@ def packetAnalysis():
     for i in range(len(ip)):
         #try:
             print(colored("The Unique Distinations Reached " + str(ip[i]) + " by Excluding Shared Distinations:", "yellow"))
-            UniqueIpAddressList=[]
+
             NEWDST =dfanalysis[i]['dst'].unique()
             BaseDST=[]
             for rem in range(len(ip)):
@@ -645,13 +643,9 @@ def packetAnalysis():
             for NEWDST_val in NEWDST:
                 if (NEWDST_val not in BaseDST):
                     print(NEWDST_val)
-                    UniqueIpAddressList.append(NEWDST_val)
             print("")
        # except Exception as e:
        #     print("Error"+str(e))
-
-    ipAddressDetails(UniqueIpAddressList)
-
 
 def packetConversations(pkt):
     global df
@@ -663,7 +657,7 @@ def packetConversations(pkt):
 
     if (df.empty):
         print(colored(
-            "No Dataframe Loaded, Use Option \"Converting to Dataframe\" in Main Menue"
+            "No Dataframe Loaded, Use Optopn Converting to Dataframe in Main Menue"
             " Press Enter To Continue", "yellow"))
         input()
         mainmenu()
@@ -680,17 +674,13 @@ def packetConversations(pkt):
             #print(df[['src', 'dst', 'sport', 'dport']])
             sourceAddresses = df.groupby("src")['payload_size'].sum()
             v = pd.DataFrame(sourceAddresses)
-            v=v.sort_values(['payload_size'], ascending=False)
-            print(v)
-
+            print(v.sort_values(['payload_size'], ascending=False))
 
 
             print("\n\nTop Recieving Addresses")
             destinationAddresses = df.groupby("dst")['payload_size'].sum()
             v = pd.DataFrame(destinationAddresses)
-            v=(v.sort_values(['payload_size'], ascending=False))
-            print(v)
-
+            print(v.sort_values(['payload_size'], ascending=False))
 
         else:
             if(inp =='x'):
@@ -853,8 +843,6 @@ def mainmenu():
                                                 advanceMode()
                                             else:
                                                 if(inp=="aa"):
-                                                    #from ipLists import iplistNewiPhoneSwitchSetup
-                                                    #ipAddressDetails(iplistNewiPhoneSwitchSetup)
                                                     resolveDNS("")
                                                 else:
                                                     if (inp=="ab"):
