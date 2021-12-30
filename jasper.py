@@ -509,7 +509,7 @@ def geoShow(path,passive):
                  points.append(temp)
         if((path[i][0]=="TTL") & (i>0)):
             #print(points)
-            mymap.addpath(points, "#"+hex(RandByte())[2:].upper()+hex(RandByte())[2:].upper()+hex(RandByte())[2:].upper())
+            mymap.addpath(points, "#FF0000")
             points=[]
 
     #print(points)
@@ -843,7 +843,9 @@ def mainmenu():
                                                 advanceMode()
                                             else:
                                                 if(inp=="aa"):
-                                                    resolveDNS("")
+                                                    from ipLists import *
+                                                    ipAddressDetails(iplistNewiPhoneSwitchSetup)
+                                                    #resolveDNS("")
                                                 else:
                                                     if (inp=="ab"):
                                                         mapFile=geoShow(tracerouteList,passive=0)
