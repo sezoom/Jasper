@@ -23,7 +23,9 @@
 
 #! /usip=Nonenv python3
 import datetime
+import multiprocessing
 import time
+from multiprocessing import Process, current_process
 
 import keyboard
 from PyQt5.QtWidgets import QApplication
@@ -89,7 +91,10 @@ def arpPing(net):
 def readPCAP(file):
     global pkt
     try:
+        print("Reading.............",end='',flush=True)
+
         pkt=rdpcap(filename=file)
+        print("[Completed]")
     except:
         print("Not able to read the file")
 
@@ -520,6 +525,36 @@ def geoShow(path,passive):
     print(colored("The File Generated in "+fileName,"yellow"))
     return fileName
 
+def convertToDataframe_core(pkt,ip_fields,tcp_fields,dataframe_fields,PID,dfData):
+    df = pd.DataFrame(columns=dataframe_fields)
+
+    current = current_process()
+    print('', end='', flush=True)
+    for packet in tqdm(pkt[IP], desc=str(current.name),
+                  position=current._identity[0] - 1):
+        field_values = []
+        for field in ip_fields:
+            field_values.append(packet[IP].fields[field])
+
+        field_values.append(packet.time)
+
+        layer_type = type(packet[IP].payload)
+        for field in tcp_fields:
+            try:
+                field_values.append(packet[layer_type].fields[field])
+            except:
+
+                field_values.append(None)
+
+        field_values.append(len(packet[layer_type].payload))
+
+        # Add row to DF
+        df_append = pd.DataFrame([field_values], columns=dataframe_fields)
+        df = pd.concat([df, df_append], axis=0)
+
+        dfData[PID]=df
+
+
 def convertToDataframe(pkt):
 
     if(pkt==""):
@@ -539,25 +574,57 @@ def convertToDataframe(pkt):
         dataframe_fields = ip_fields + ['time'] + tcp_fields + ['payload_size']
 
         df = pd.DataFrame(columns=dataframe_fields)
-        for packet in tqdm(pkt[IP]):
-            field_values = []
-            for field in ip_fields:
-                field_values.append(packet[IP].fields[field])
+        numberofCores = int(multiprocessing.cpu_count()) - 2
 
-            field_values.append(packet.time)
+        print(colored("Work Will Be Divided For "+str(numberofCores)+" Cores", "yellow"))
+        processes = []
+        manager = multiprocessing.Manager()
+        dfData = manager.dict()
 
-            layer_type = type(packet[IP].payload)
-            for field in tcp_fields:
-                try:
-                    field_values.append(packet[layer_type].fields[field])
-                except:
-                    field_values.append(None)
 
-            field_values.append(len(packet[layer_type].payload))
+        #grp_split = np.array_split(pkt, numberofCores)
+        try:
+            chunks=int(len(pkt)/numberofCores)
+        except:
+            chunks=1
+        if(chunks==1):
+            p = Process(target=convertToDataframe_core, args=(pkt,0, dfData))
+            time.sleep(0.2)
+            processes.append(p)
+        else:
+            i=0
+            for index in range(0,len(pkt),chunks):
+                #grptmp = grp_split[index].reset_index(drop=True)
+                grptmp = pkt[index:index+chunks]
+                p = Process(target=convertToDataframe_core, args=(grptmp,ip_fields,tcp_fields,dataframe_fields,i,dfData ))
+                i+=1
+                time.sleep(0.2)
+                processes.append(p)
+        # grp_split = np.array_split(pkt, numberofCores)
+        # for index in range(numberofCores):
+        #         grptmp = grp_split[index]
+        #         #grptmp = grp_split[index].reset_index(drop=True)
+        #
+        #         p = Process(target=convertToDataframe_core, args=(grptmp, index, dfData))
+        #         time.sleep(0.2)
+        #         processes.append(p)
+        # Start the processes2
+        for p in processes:
+            time.sleep(0.2)
+            p.start()
 
-            # Add row to DF
-            df_append = pd.DataFrame([field_values], columns=dataframe_fields)
-            df = pd.concat([df, df_append], axis=0)
+        # Ensure all processes2 have finished execution
+        print('', end='', flush=True)
+        for p in processes:
+            time.sleep(0.2)
+            p.join()
+
+        print(colored("In progress ....Merging All Data", "yellow"))
+        for index in range(numberofCores):
+            # dfInfectedRest[index]=dfInfectedRest.reset_index(drop=True)
+            # dfCuredRest[index]=dfCuredRest.reset_index(drop=True)
+            if (not (dfData[index].empty)):
+                df = df.append(dfData[index], ignore_index=True)
 
         # Reset Index
         df = df.reset_index()
@@ -682,11 +749,7 @@ def packetConversations():
             sourceAddresses = df.groupby("src")['payload_size'].sum()
             v = pd.DataFrame(sourceAddresses)
             v=v.sort_values(['payload_size'], ascending=False)
-            v=v.reset_index(drop=True)
-
             print(v)
-
-
 
             print("\n\nTop Recieving Addresses")
             destinationAddresses = df.groupby("dst")['payload_size'].sum()
