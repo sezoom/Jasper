@@ -866,7 +866,7 @@ def mainmenu():
                                                              packetStructure(pkt=pkt)
                                                         else:
                                                             if (inp == "ad"):
-                                                                packetConversations(pkt=pkt)
+                                                                packetConversations()
                                                             else:
                                                                 if (inp == "pd"):
                                                                     convertToDataframe(pkt=pkt)
