@@ -527,6 +527,7 @@ def geoShow(path,passive):
 
 def convertToDataframe_core(pkt,ip_fields,tcp_fields,dataframe_fields,PID,dfData):
     df = pd.DataFrame(columns=dataframe_fields)
+    df_append = pd.DataFrame(columns=dataframe_fields)
 
     current = current_process()
     print('', end='', flush=True)
@@ -550,10 +551,12 @@ def convertToDataframe_core(pkt,ip_fields,tcp_fields,dataframe_fields,PID,dfData
 
         # Add row to DF
         df_append = pd.DataFrame([field_values], columns=dataframe_fields)
-        df = pd.concat([df, df_append], axis=0)
+        df = pd.concat([df, df_append].copy(), axis=0)
 
-        dfData[PID]=df
+    dfData[PID]=df.copy()
+    if(not df.empty):
         del df
+    if(not df_append.empty):
         del df_append
 
 
@@ -601,6 +604,7 @@ def convertToDataframe(pkt):
                 i+=1
                 time.sleep(0.2)
                 processes.append(p)
+            i=0
         # grp_split = np.array_split(pkt, numberofCores)
         # for index in range(numberofCores):
         #         grptmp = grp_split[index]
