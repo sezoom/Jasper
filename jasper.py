@@ -553,6 +553,8 @@ def convertToDataframe_core(pkt,ip_fields,tcp_fields,dataframe_fields,PID,dfData
         df = pd.concat([df, df_append], axis=0)
 
         dfData[PID]=df
+        del df
+        del df_append
 
 
 def convertToDataframe(pkt):
@@ -580,7 +582,6 @@ def convertToDataframe(pkt):
         processes = []
         manager = multiprocessing.Manager()
         dfData = manager.dict()
-
 
         #grp_split = np.array_split(pkt, numberofCores)
         try:
@@ -621,8 +622,6 @@ def convertToDataframe(pkt):
 
         print(colored("In progress ....Merging All Data", "yellow"))
         for index in range(numberofCores):
-            # dfInfectedRest[index]=dfInfectedRest.reset_index(drop=True)
-            # dfCuredRest[index]=dfCuredRest.reset_index(drop=True)
             if (not (dfData[index].empty)):
                 df = df.append(dfData[index], ignore_index=True)
 
