@@ -521,7 +521,7 @@ def geoShow(path,passive):
     return fileName
 
 def convertToDataframe(pkt):
-    global df
+
     if(pkt==""):
         print(colored("No Packet Loaded In The Application. Read PCAP File or Sniff New Traffic From The Main Menu,\nThen Convert it to Dataframe,"
                       " Press Enter To Continue","yellow"))
@@ -563,6 +563,7 @@ def convertToDataframe(pkt):
         df = df.reset_index()
         df = df.drop(columns="index")
         print("DONE... ")
+        return df
 
 def packetAnalysis():
     global df
@@ -653,13 +654,13 @@ def packetAnalysis():
     ipAddressDetails(UniqueIpAddressList)
 
 
-def packetConversations(pkt):
+def packetConversations():
     global df
-    if(pkt==""):
-        print(colored("No Packet Loaded In The Application. Read PCAP File or Sniff New Traffic From The Main Menu,\nThen Convert it to Dataframe,"
-                      " Press Enter To Continue","yellow"))
-        input()
-        mainmenu()
+    # if(pkt==""):
+    #     print(colored("No Packet Loaded In The Application. Read PCAP File or Sniff New Traffic From The Main Menu,\nThen Convert it to Dataframe,"
+    #                   " Press Enter To Continue","yellow"))
+    #     input()
+    #     mainmenu()
 
     if (df.empty):
         print(colored(
@@ -704,6 +705,53 @@ def packetConversations(pkt):
                 else:
                     print(colored("Wrong Opt","red"))
 
+def crossTwoPCAPS():
+    global df
+    print(colored("Choose Original PCAP File, Press Enter To Continue", "yellow"))
+    input()
+
+    dialog = dialogsGUI()
+    fileName, ext = dialog.openFileNameDialog()
+    if (str(ext) == ""):
+        mainmenu()
+    pkt1 = readPCAP(fileName)
+
+    print(colored("Choose New PCAP File, Press Enter To Continue", "yellow"))
+
+    input()
+    fileName, ext = dialog.openFileNameDialog()
+    if (str(ext) == ""):
+        mainmenu()
+    pkt2 = readPCAP(fileName)
+
+
+    print(colored("Converting Files to Dataframes", "yellow"))
+    df1=convertToDataframe(pkt1)
+    df2=convertToDataframe(pkt2)
+
+
+    df2buffer=df2
+    buffer = df2buffer[df2buffer.duplicated('dst',keep=False)]
+    df2Unique = df2buffer.append(buffer)
+    df2Unique = df2Unique[~df2Unique.index.duplicated(keep=False)]
+    df2Unique=df2Unique.reset_index(drop=True)
+
+
+
+    df12buffer=df1
+    df12buffer.append(df1)
+    df12buffer.append(df2Unique)
+    buffer = df12buffer[df12buffer.duplicated('dst',keep=False)]
+    df2UniqueWithoutDF1 = df12buffer.append(buffer)
+    df2UniqueWithoutDF1 = df2UniqueWithoutDF1[~df2UniqueWithoutDF1.index.duplicated(keep=False)]
+    df2UniqueWithoutDF1=df2UniqueWithoutDF1.reset_index(drop=True)
+
+    print(colored("Number of Unique Distinations in New PCAP is "+ str(df2UniqueWithoutDF1.shape[0]), "yellow"))
+    df=df2UniqueWithoutDF1
+    if(df2UniqueWithoutDF1.shape[0]==0):
+        print(colored("No Result Found !!", "yellow"))
+    else:
+        packetConversations()
 
 
 def packetStructure(pkt):
@@ -779,7 +827,7 @@ def aboutJasper():
 
 
 def mainmenu():
-    global pkt,ans_arpPing,unans_arpPing,tracerouteTable,tracerouteList,scanPortSingleTable,scanPortMassTable
+    global df,pkt,ans_arpPing,unans_arpPing,tracerouteTable,tracerouteList,scanPortSingleTable,scanPortMassTable
 
     if not os.path.exists("output"):
         os.makedirs("output")
@@ -869,9 +917,12 @@ def mainmenu():
                                                                 packetConversations(pkt=pkt)
                                                             else:
                                                                 if (inp == "pd"):
-                                                                    convertToDataframe(pkt=pkt)
+                                                                    df=convertToDataframe(pkt=pkt)
                                                                 else:
-                                                                    print("Wrong OPT")
+                                                                    if(inp=="ae"):
+                                                                        crossTwoPCAPS()
+                                                                    else:
+                                                                        print("Wrong OPT")
 
 
 
