@@ -433,11 +433,13 @@ def resolveDNS(ip):
     return ResolveTable
 #function require list not string
 def ipAddressDetails(listIps):
+    global tracerouteList
 
     locations = []
     # print(p[1])
     ResolveTable = prettytable.PrettyTable(
         ["TTL", "IP Address", "Translation", "Country", "City", "Latitude", "Longitude", "Company"])
+    traceRoutelist=[["TTL","IP Address","Translation","Country","City","Latitude","Longitude","Company"]]
     idx=0
     try:
         for ip in listIps:
@@ -451,8 +453,11 @@ def ipAddressDetails(listIps):
             for data in locations:
                 if (data[0] == "b'success"):
                     ResolveTable.add_row([idx, ip, data[0], data[1], data[5], data[7], data[8], data[10]])
+                    traceRoutelist += [
+                        [idx, ip, data[0], data[1], data[5], data[7], data[8], data[10]]]
                 else:
                     ResolveTable.add_row([idx,ip,data[0],data[1],"","","",""])
+                    traceRoutelist += [[idx, ip, data[0], data[1], "", "", "", ""]]
                 i += 1
                 idx+=1
             locations = []
@@ -461,8 +466,10 @@ def ipAddressDetails(listIps):
         print (e)
 
     print (ResolveTable)
+    tracerouteList=traceRoutelist
+    geoShow(tracerouteList,passive=1)
 
-    return ResolveTable
+    return ResolveTable,tracerouteList
 
 def geoShow(path,passive):
     global tracerouteTable,tracerouteList
@@ -554,10 +561,10 @@ def convertToDataframe_core(pkt,ip_fields,tcp_fields,dataframe_fields,PID,dfData
         df = pd.concat([df, df_append].copy(), axis=0)
 
     dfData[PID]=df.copy()
-    if(not df.empty):
-        del df
-    if(not df_append.empty):
-        del df_append
+    # if(not df.empty):
+    #     del df
+    # if(not df_append.empty):
+    #     del df_append
 
 
 def convertToDataframe(pkt):
@@ -589,6 +596,7 @@ def convertToDataframe(pkt):
         #grp_split = np.array_split(pkt, numberofCores)
         try:
             chunks=int(len(pkt)/numberofCores)
+            #TODO: add the remaining pkts if exist, len(pkt)%numberofCores
         except:
             chunks=1
         if(chunks==1):
@@ -624,8 +632,8 @@ def convertToDataframe(pkt):
             time.sleep(0.2)
             p.join()
 
-        print(colored("In progress ....Merging All Data", "yellow"))
-        for index in range(numberofCores):
+        print(colored("\n\nIn progress ....Merging All Data", "yellow"))
+        for index in range(len(processes)):
             if (not (dfData[index].empty)):
                 df = df.append(dfData[index], ignore_index=True)
 
@@ -795,14 +803,11 @@ def crossTwoPCAPS():
     df1=convertToDataframe(pkt1)
     df2=convertToDataframe(pkt2)
 
-
     df2buffer=df2
     buffer = df2buffer[df2buffer.duplicated('dst',keep=False)]
     df2Unique = df2buffer.append(buffer)
     df2Unique = df2Unique[~df2Unique.index.duplicated(keep=False)]
     df2Unique=df2Unique.reset_index(drop=True)
-
-
 
     df12buffer=df1
     df12buffer.append(df1)
