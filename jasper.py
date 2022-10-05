@@ -759,19 +759,20 @@ def packetConversations():
             #print(df[['src', 'dst', 'sport', 'dport']])
             sourceAddresses = df.groupby("src")['payload_size'].sum()
             v = pd.DataFrame(sourceAddresses)
-            v=v.sort_values(['payload_size'], ascending=False)
-            print(v)
+            v1=v.sort_values(['payload_size'], ascending=False)
+            print(v1)
 
             print("\n\nTop Recieving Addresses")
             destinationAddresses = df.groupby("dst")['payload_size'].sum()
             v = pd.DataFrame(destinationAddresses)
-            v=(v.sort_values(['payload_size'], ascending=False))
-            print(v)
+            v2=(v.sort_values(['payload_size'], ascending=False))
+            print(v2)
 
 
         else:
             if(inp =='x'):
                packetAnalysis()
+               mainmenu()
 
             else:
                 if(inp=="c"):
@@ -788,7 +789,7 @@ def crossTwoPCAPS():
     fileName, ext = dialog.openFileNameDialog()
     if (str(ext) == ""):
         mainmenu()
-    pkt1 = readPCAP(fileName)
+    #pkt1 = readPCAP(fileName)
 
     print(colored("Choose New PCAP File, Press Enter To Continue", "yellow"))
 
@@ -800,30 +801,19 @@ def crossTwoPCAPS():
 
 
     print(colored("Converting Files to Dataframes", "yellow"))
-    df1=convertToDataframe(pkt1)
+    #df1=convertToDataframe(pkt1)
     df2=convertToDataframe(pkt2)
 
-    #TODO ask the user for filteration option
-    buffer = df2[df2.duplicated(['src','dst'],keep='first')]
-    df2Unique = pd.concat([buffer,df2])
-    df2Unique = df2Unique[~df2Unique.index.duplicated(keep=False)]
-    df2Unique=df2Unique.reset_index(drop=True)
+    #TODO: keep the data in the df and just select dst ip in df1, df2 df12, df2notdf1
 
-
-    df12buffer=df1
-    df12buffer.append(df1)
-    df12buffer.append(df2Unique)
-    buffer = df12buffer[df12buffer.duplicated(['src','dst'],keep=False)]
-    df2UniqueWithoutDF1 = df12buffer.append(buffer)
-    df2UniqueWithoutDF1 = df2UniqueWithoutDF1[~df2UniqueWithoutDF1.index.duplicated(keep=False)]
-    df2UniqueWithoutDF1=df2UniqueWithoutDF1.reset_index(drop=True)
-
-    print(colored("Number of Unique Distinations in New PCAP is "+ str(df2UniqueWithoutDF1.shape[0]), "yellow"))
-    df=df2UniqueWithoutDF1
-    if(df2UniqueWithoutDF1.shape[0]==0):
-        print(colored("No Result Found !!", "yellow"))
-    else:
-        packetConversations()
+    df=df2
+    packetConversations()
+    # print(colored("Number of Unique Distinations in New PCAP is "+ str(df2UniqueWithoutDF1.shape[0]), "yellow"))
+    # df=df2UniqueWithoutDF1
+    # if(df2UniqueWithoutDF1.shape[0]==0):
+    #     print(colored("No Result Found !!", "yellow"))
+    # else:
+    #     packetConversations()
 
 
 def packetStructure(pkt):
