@@ -525,7 +525,7 @@ def geoShow(path,passive):
             points=[]
 
     #print(points)
-    mymap.addpath(points, "#F0FF00")
+    #mymap.addpath(points, "#F0FF00")
     ext=date.datetime.now()
     fileName="output/traceroute"+str(ext)+".html"
     mymap.draw(fileName)
@@ -803,16 +803,17 @@ def crossTwoPCAPS():
     df1=convertToDataframe(pkt1)
     df2=convertToDataframe(pkt2)
 
-    df2buffer=df2
-    buffer = df2buffer[df2buffer.duplicated('dst',keep=False)]
-    df2Unique = df2buffer.append(buffer)
+    #TODO ask the user for filteration option
+    buffer = df2[df2.duplicated(['src','dst'],keep='first')]
+    df2Unique = pd.concat([buffer,df2])
     df2Unique = df2Unique[~df2Unique.index.duplicated(keep=False)]
     df2Unique=df2Unique.reset_index(drop=True)
+
 
     df12buffer=df1
     df12buffer.append(df1)
     df12buffer.append(df2Unique)
-    buffer = df12buffer[df12buffer.duplicated('dst',keep=False)]
+    buffer = df12buffer[df12buffer.duplicated(['src','dst'],keep=False)]
     df2UniqueWithoutDF1 = df12buffer.append(buffer)
     df2UniqueWithoutDF1 = df2UniqueWithoutDF1[~df2UniqueWithoutDF1.index.duplicated(keep=False)]
     df2UniqueWithoutDF1=df2UniqueWithoutDF1.reset_index(drop=True)
