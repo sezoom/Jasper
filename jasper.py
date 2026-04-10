@@ -561,10 +561,10 @@ def convertToDataframe_core(pkt,ip_fields,tcp_fields,dataframe_fields,PID,dfData
         df = pd.concat([df, df_append].copy(), axis=0)
 
     dfData[PID]=df.copy()
-    # if(not df.empty):
-    #     del df
-    # if(not df_append.empty):
-    #     del df_append
+    if(not df.empty):
+        del df
+    if(not df_append.empty):
+        del df_append
 
 
 def convertToDataframe(pkt):
@@ -596,7 +596,10 @@ def convertToDataframe(pkt):
         #grp_split = np.array_split(pkt, numberofCores)
         try:
             chunks=int(len(pkt)/numberofCores)
+
+
             #TODO: add the remaining pkts if exist, len(pkt)%numberofCores
+
         except:
             chunks=1
         if(chunks==1):
@@ -632,8 +635,9 @@ def convertToDataframe(pkt):
             time.sleep(0.2)
             p.join()
 
-        print(colored("\n\nIn progress ....Merging All Data", "yellow"))
-        for index in range(len(processes)):
+ 
+print(colored("In progress ....Merging All Data", "yellow"))
+        for index in range(numberofCores):
             if (not (dfData[index].empty)):
                 df = df.append(dfData[index], ignore_index=True)
 
@@ -759,14 +763,17 @@ def packetConversations():
             #print(df[['src', 'dst', 'sport', 'dport']])
             sourceAddresses = df.groupby("src")['payload_size'].sum()
             v = pd.DataFrame(sourceAddresses)
-            v1=v.sort_values(['payload_size'], ascending=False)
-            print(v1)
+
+            v=v.sort_values(['payload_size'], ascending=False)
+            print(v)
+
 
             print("\n\nTop Recieving Addresses")
             destinationAddresses = df.groupby("dst")['payload_size'].sum()
             v = pd.DataFrame(destinationAddresses)
-            v2=(v.sort_values(['payload_size'], ascending=False))
-            print(v2)
+            v=(v.sort_values(['payload_size'], ascending=False))
+            print(v)
+
 
 
         else:
@@ -789,7 +796,9 @@ def crossTwoPCAPS():
     fileName, ext = dialog.openFileNameDialog()
     if (str(ext) == ""):
         mainmenu()
-    #pkt1 = readPCAP(fileName)
+
+    pkt1 = readPCAP(fileName)
+
 
     print(colored("Choose New PCAP File, Press Enter To Continue", "yellow"))
 
@@ -801,19 +810,33 @@ def crossTwoPCAPS():
 
 
     print(colored("Converting Files to Dataframes", "yellow"))
-    #df1=convertToDataframe(pkt1)
+    df1=convertToDataframe(pkt1)
     df2=convertToDataframe(pkt2)
 
-    #TODO: keep the data in the df and just select dst ip in df1, df2 df12, df2notdf1
 
-    df=df2
-    packetConversations()
-    # print(colored("Number of Unique Distinations in New PCAP is "+ str(df2UniqueWithoutDF1.shape[0]), "yellow"))
-    # df=df2UniqueWithoutDF1
-    # if(df2UniqueWithoutDF1.shape[0]==0):
-    #     print(colored("No Result Found !!", "yellow"))
-    # else:
-    #     packetConversations()
+    df2buffer=df2
+    buffer = df2buffer[df2buffer.duplicated('dst',keep=False)]
+    df2Unique = df2buffer.append(buffer)
+    df2Unique = df2Unique[~df2Unique.index.duplicated(keep=False)]
+    df2Unique=df2Unique.reset_index(drop=True)
+
+
+
+    df12buffer=df1
+    df12buffer.append(df1)
+    df12buffer.append(df2Unique)
+    buffer = df12buffer[df12buffer.duplicated('dst',keep=False)]
+    df2UniqueWithoutDF1 = df12buffer.append(buffer)
+    df2UniqueWithoutDF1 = df2UniqueWithoutDF1[~df2UniqueWithoutDF1.index.duplicated(keep=False)]
+    df2UniqueWithoutDF1=df2UniqueWithoutDF1.reset_index(drop=True)
+
+    print(colored("Number of Unique Distinations in New PCAP is "+ str(df2UniqueWithoutDF1.shape[0]), "yellow"))
+    df=df2UniqueWithoutDF1
+    if(df2UniqueWithoutDF1.shape[0]==0):
+        print(colored("No Result Found !!", "yellow"))
+    else:
+        packetConversations()
+
 
 
 def packetStructure(pkt):
