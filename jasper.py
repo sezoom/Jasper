@@ -433,11 +433,13 @@ def resolveDNS(ip):
     return ResolveTable
 #function require list not string
 def ipAddressDetails(listIps):
+    global tracerouteList
 
     locations = []
     # print(p[1])
     ResolveTable = prettytable.PrettyTable(
         ["TTL", "IP Address", "Translation", "Country", "City", "Latitude", "Longitude", "Company"])
+    traceRoutelist=[["TTL","IP Address","Translation","Country","City","Latitude","Longitude","Company"]]
     idx=0
     try:
         for ip in listIps:
@@ -451,8 +453,11 @@ def ipAddressDetails(listIps):
             for data in locations:
                 if (data[0] == "b'success"):
                     ResolveTable.add_row([idx, ip, data[0], data[1], data[5], data[7], data[8], data[10]])
+                    traceRoutelist += [
+                        [idx, ip, data[0], data[1], data[5], data[7], data[8], data[10]]]
                 else:
                     ResolveTable.add_row([idx,ip,data[0],data[1],"","","",""])
+                    traceRoutelist += [[idx, ip, data[0], data[1], "", "", "", ""]]
                 i += 1
                 idx+=1
             locations = []
@@ -461,8 +466,10 @@ def ipAddressDetails(listIps):
         print (e)
 
     print (ResolveTable)
+    tracerouteList=traceRoutelist
+    geoShow(tracerouteList,passive=1)
 
-    return ResolveTable
+    return ResolveTable,tracerouteList
 
 def geoShow(path,passive):
     global tracerouteTable,tracerouteList
@@ -518,7 +525,7 @@ def geoShow(path,passive):
             points=[]
 
     #print(points)
-    mymap.addpath(points, "#F0FF00")
+    #mymap.addpath(points, "#F0FF00")
     ext=date.datetime.now()
     fileName="output/traceroute"+str(ext)+".html"
     mymap.draw(fileName)
@@ -589,6 +596,10 @@ def convertToDataframe(pkt):
         #grp_split = np.array_split(pkt, numberofCores)
         try:
             chunks=int(len(pkt)/numberofCores)
+
+
+            #TODO: add the remaining pkts if exist, len(pkt)%numberofCores
+
         except:
             chunks=1
         if(chunks==1):
@@ -624,7 +635,8 @@ def convertToDataframe(pkt):
             time.sleep(0.2)
             p.join()
 
-        print(colored("In progress ....Merging All Data", "yellow"))
+ 
+print(colored("In progress ....Merging All Data", "yellow"))
         for index in range(numberofCores):
             if (not (dfData[index].empty)):
                 df = df.append(dfData[index], ignore_index=True)
@@ -751,8 +763,10 @@ def packetConversations():
             #print(df[['src', 'dst', 'sport', 'dport']])
             sourceAddresses = df.groupby("src")['payload_size'].sum()
             v = pd.DataFrame(sourceAddresses)
+
             v=v.sort_values(['payload_size'], ascending=False)
             print(v)
+
 
             print("\n\nTop Recieving Addresses")
             destinationAddresses = df.groupby("dst")['payload_size'].sum()
@@ -761,9 +775,11 @@ def packetConversations():
             print(v)
 
 
+
         else:
             if(inp =='x'):
                packetAnalysis()
+               mainmenu()
 
             else:
                 if(inp=="c"):
@@ -780,7 +796,9 @@ def crossTwoPCAPS():
     fileName, ext = dialog.openFileNameDialog()
     if (str(ext) == ""):
         mainmenu()
+
     pkt1 = readPCAP(fileName)
+
 
     print(colored("Choose New PCAP File, Press Enter To Continue", "yellow"))
 
@@ -818,6 +836,7 @@ def crossTwoPCAPS():
         print(colored("No Result Found !!", "yellow"))
     else:
         packetConversations()
+
 
 
 def packetStructure(pkt):
