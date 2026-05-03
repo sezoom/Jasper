@@ -1,6 +1,9 @@
-scapy[complete]
-pyfiglet
-termcolor
-prettytable
-pandas
-PyQt5
+rich>=13.7
+scapy>=2.5
+pyfiglet>=1.0
+termcolor>=2.4
+prettytable>=3.10
+requests>=2.31
+PyQt5>=5.15; platform_system != "Darwin"
+pandas>=2.0
+psutil>=5.9

@@ -2,7 +2,10 @@
 """
 Jasper - Network Probing Toolkit
 
-
+A maintained Python 3 version of the original Jasper console application.
+The probing and analysis features are functional. High-risk attack menu items
+are intentionally defensive placeholders rather than offensive implementations.
+Run with privileges when using packet capture, ARP scan, SYN scan, or traceroute:
     sudo python3 -E jasper.py
 """
 
@@ -17,9 +20,14 @@ import socket
 import sys
 import time
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Iterable, List, Optional, Sequence, Tuple
-import pandas as pd
+
+try:
+    import pandas as pd
+except ModuleNotFoundError:
+    pd = None
 import prettytable
 from pyfiglet import Figlet
 from termcolor import colored
@@ -75,7 +83,7 @@ try:
 except Exception:
     pass
 
-VERSION = "0.2"
+VERSION = "0.3"
 OUTPUT_DIR = Path("output")
 MODULES_DIR = Path("modules")
 
@@ -323,25 +331,41 @@ def choose_hosts_from_arp(allow_many: bool) -> List[str]:
 
 
 def syn_scan_host(ip: str, ports: Sequence[int], timeout: float = 1.0) -> List[Tuple[int, str]]:
-    open_ports: List[Tuple[int, str]] = []
-    for port in ports:
+    """Robust TCP open-port scan used by both legacy and smart TUI modes.
+
+    The original build relied on raw SYN packets only. That is fragile across
+    macOS/Linux permissions, VPNs, and interfaces. This maintained build uses a
+    TCP connect scan by default so scanning works consistently; it still only
+    reports ports that completed a TCP connection.
+    """
+    try:
+        address = socket.gethostbyname(ip)
+    except socket.gaierror:
+        print(colored(f"Cannot resolve target: {ip}", "red"))
+        return []
+
+    def check(port: int) -> Optional[Tuple[int, str]]:
         try:
-            resp = sr1(IP(dst=ip) / TCP(dport=port, sport=RandShort(), flags="S"), timeout=timeout, verbose=0)
-            if resp is not None and resp.haslayer(TCP) and int(resp[TCP].flags) & 0x12 == 0x12:
-                open_ports.append((port, service_name(port)))
-                # Politely send RST to close half-open SYN scan.
-                sr1(IP(dst=ip) / TCP(dport=port, sport=RandShort(), flags="R"), timeout=0.2, verbose=0)
-        except PermissionError:
-            # Non-root fallback: TCP connect scan.
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.settimeout(timeout)
-                if s.connect_ex((ip, port)) == 0:
-                    open_ports.append((port, service_name(port)))
-        except KeyboardInterrupt:
-            break
+                if s.connect_ex((address, int(port))) == 0:
+                    return int(port), service_name(int(port))
         except Exception:
-            continue
-    return open_ports
+            return None
+        return None
+
+    open_ports: List[Tuple[int, str]] = []
+    workers = max(1, min(100, len(list(ports)) if not isinstance(ports, list) else len(ports)))
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = [executor.submit(check, int(port)) for port in ports]
+        try:
+            for future in as_completed(futures):
+                result = future.result()
+                if result:
+                    open_ports.append(result)
+        except KeyboardInterrupt:
+            print(colored("Scan interrupted.", "yellow"))
+    return sorted(open_ports, key=lambda item: item[0])
 
 
 def scanOpenPorts():
@@ -815,5 +839,19 @@ def mainmenu() -> None:
 
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv) if QApplication is not None else None
-    mainmenu()
+    if "--legacy" in sys.argv:
+        app = QApplication(sys.argv) if QApplication is not None else None
+        mainmenu()
+    else:
+        try:
+            from jasper_tui import JasperDashboard
+
+            JasperDashboard(sys.modules[__name__]).run()
+        except ModuleNotFoundError as exc:
+            if exc.name == "rich":
+                print("Rich is required for the new colored dashboard. Install dependencies with: python3 -m pip install -r requirements.txt")
+                print("Falling back to the legacy menu. You can also run: python3 jasper.py --legacy")
+                app = QApplication(sys.argv) if QApplication is not None else None
+                mainmenu()
+            else:
+                raise
