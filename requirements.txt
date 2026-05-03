@@ -1,0 +1,6 @@
+scapy[complete]
+pyfiglet
+termcolor
+prettytable
+pandas
+PyQt5
